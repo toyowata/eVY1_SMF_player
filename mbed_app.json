@@ -1,0 +1,9 @@
+{
+    "target_overrides": {
+        "*": {
+            "platform.stdio-convert-newlines"   : true
+        },
+        "K64F": {
+        }
+    }
+}
