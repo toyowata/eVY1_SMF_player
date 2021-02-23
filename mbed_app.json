@@ -1,9 +1,21 @@
 {
+    "macros":   [
+        "DISABLE_eVocaloid=1",
+        "ENABLE_DEBUG_PRINT=1",
+        "USE_DIRECTORY_LIST=1"
+    ],
     "target_overrides": {
         "*": {
+            "platform.stdio-baud-rate"          : 115200,
             "platform.stdio-convert-newlines"   : true
         },
         "K64F": {
+            "app.fwd-button"                    : "D2"
+        }
+    },
+    "config": {
+        "fwd-button": {
+            "value": "D2"
         }
     }
 }

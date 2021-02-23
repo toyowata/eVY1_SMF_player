@@ -19,26 +19,10 @@
 BlockDevice *bd = BlockDevice::get_default_instance();
 FATFileSystem fs("fs");
 
-#define _DEBUG
-#define _NO_eVocaloid_
-
-#if defined(TARGET_K64F)
-#define USE_DIRECTORY_LIST
 RawSerial midi(D1, D0);
-InterruptIn btn(PTA4);
+InterruptIn btn(MBED_CONF_APP_FWD_BUTTON);
 
-#elif defined(TARGET_LPC1114)
-SDFileSystem sd(dp2, dp1, dp6, dp4, "sd"); // MOSI, MISO, SCK, CS
-RawSerial midi(dp16, NC);
-InterruptIn btn(dp9);
-#if defined(_DEBUG)
-#undef _DEBUG
-#endif
-
-#endif
-
-#ifdef _DEBUG
-//Serial pc(USBTX, USBRX);
+#if ENABLE_DEBUG_PRINT
 #define DEBUG_PRINT(...)    { printf(__VA_ARGS__);}
 #else
 #define DEBUG_PRINT(...)
@@ -77,7 +61,7 @@ uint32_t delta_time_read(void)
 
 void midi_play(void)
 {
-    int32_t  buf[256];
+    int32_t  buf[3];
     uint32_t cnt;
     uint32_t cmd;
 
@@ -87,7 +71,7 @@ void midi_play(void)
     cmd = (buf[0] & 0xf0);
     if ((cmd == 0x80) || (cmd == 0x90) || (cmd == 0xA0) || (cmd == 0xB0) || (cmd == 0xE0)) {
         buf[2] = midi_read();
-#if defined(_NO_eVocaloid_)
+#if DISABLE_eVocaloid
         if ((buf[0] & 0x0f) == 0x0f) {    // CH.16
             return;
         }
@@ -99,7 +83,7 @@ void midi_play(void)
         midi.putc(buf[1]);
         midi.putc(buf[2]);
     } else if (cmd == 0xC0) {
-#if defined(_NO_eVocaloid_)
+#if DISABLE_eVocaloid
         if ((buf[0] & 0x0f) == 0x00) {    // CH.1
             buf[0] = (buf[0] | 0x0f);     // Force change to CH.16
         }
@@ -130,7 +114,7 @@ void midi_play(void)
                         tempo = (tempo << 8 ) | midi_read();
                         tempo = (tempo << 8 ) | midi_read();
                         tempo = tempo / 1000;
-                        DEBUG_PRINT("Set tempo = %ld\n", tempo);
+                        // DEBUG_PRINT("Set tempo = %ld\n", tempo);
                         break;
                     case 0x2f: // End of Track
                         midi_read(); // Read zero
@@ -139,15 +123,21 @@ void midi_play(void)
                         break;
                     case 0x01:
                     case 0x02:
+                    case 0x03:
+                    case 0x04:
+                    case 0x05:
+                        DEBUG_PRINT("%d: ", buf[1]);
                         cnt = midi_read(); // len
-                        for(uint32_t i=0; i<cnt; i++)
+                        for(uint32_t i=0; i<cnt; i++) {
                             DEBUG_PRINT("%c", midi_read());
+                        }
                         DEBUG_PRINT("\n");
                         break;
                     default:
                         cnt = midi_read(); // len
-                        for(uint32_t i=0; i<cnt; i++)
+                        for(uint32_t i=0; i<cnt; i++) {
                             midi_read();
+                        }
                         break;
                 }
                 break;
@@ -214,7 +204,7 @@ void smf_init(void)
     }
 
     wait_time = (delta_time_read() * tempo) / delta_time ;
-    //DEBUG_PRINT("wait_time = %ld\n", wait_time);
+    DEBUG_PRINT("wait_time = %ld\n", wait_time);
     force_abort = 0;
 }
 
@@ -237,11 +227,14 @@ int main()
     btn.fall(&skip);
     midi.baud(31250);
 
-    thread_sleep_for(3500);    // Wait few seconds for booting eVY1-Shleld.
-
-#if !defined(_NO_eVocaloid_)
+#if (DISABLE_eVocaloid == 0)
     const uint8_t aMsg[] = "\xF0\x43\x79\x09\x00\x50\x10" "4 a\0" "\xF7";
-    for (uint32_t i = 0; i < sizeof(aMsg)-1; midi.putc(aMsg[i++]));
+    for (uint32_t i = 0; i < (sizeof(aMsg)-1); i++) {
+        midi.putc(aMsg[i]);
+    }
+
+#else
+    thread_sleep_for(3500);    // Wait few seconds for booting eVY1-Shleld.
 #endif
 
     DEBUG_PRINT("Initialized.\n");
@@ -278,6 +271,7 @@ int main()
             while (1) {
                 smf_main_loop();
                 if (force_abort) {
+                    force_abort = 0;
                     break;
                 }
             }
