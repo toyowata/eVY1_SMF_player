@@ -19,7 +19,7 @@
 BlockDevice *bd = BlockDevice::get_default_instance();
 FATFileSystem fs("fs");
 
-RawSerial midi(D1, D0);
+UnbufferedSerial midi(D1, D0);
 InterruptIn btn(MBED_CONF_APP_FWD_BUTTON);
 
 #if ENABLE_DEBUG_PRINT
@@ -49,7 +49,7 @@ uint32_t delta_time_read(void)
     uint32_t ret = 0;
 
     while(1) {
-        r_buf = midi_read();
+        r_buf = fgetc(fp); //midi_read();
         ret = (ret <<7) | (r_buf & 0x7f);
         if ((r_buf & 0x80) == 0)
             break;
@@ -79,28 +79,33 @@ void midi_play(void)
             buf[0] = (buf[0] | 0x0f);     // Force change to CH.16
         }
 #endif
-        midi.putc(buf[0]);
-        midi.putc(buf[1]);
-        midi.putc(buf[2]);
+        //midi.putc(buf[0]);
+        //midi.putc(buf[1]);
+        //midi.putc(buf[2]);
+        midi.write(buf, 3);
     } else if (cmd == 0xC0) {
 #if DISABLE_eVocaloid
         if ((buf[0] & 0x0f) == 0x00) {    // CH.1
             buf[0] = (buf[0] | 0x0f);     // Force change to CH.16
         }
 #endif
-        midi.putc(buf[0]);
-        midi.putc(buf[1]);
+        //midi.putc(buf[0]);
+        //midi.putc(buf[1]);
+        midi.write(buf, 2);
     } else if (cmd == 0xD0) {
-        midi.putc(buf[0]);
-        midi.putc(buf[1]);
+        //midi.putc(buf[0]);
+        //midi.putc(buf[1]);
+        midi.write(buf, 2);
     } else if (cmd == 0xF0) {
         switch( buf[0] & 0x0F ) {
             case 0x00 : // SysEx
             case 0x07 : // SysEx2
                 cnt = buf[1];
-                midi.putc(buf[0]);
+                //midi.putc(buf[0]);
+                midi.write(buf, 1);
                 for(uint32_t i=1; i<cnt+1; i++) {
-                    midi.putc(midi_read());
+                    //midi.putc(midi_read());
+                    midi.write((const void *)midi_read(), 1);
                 }
                 break;
             case 0x0f : // Meta event
@@ -161,15 +166,26 @@ void smf_init(void)
 {
     wait_time = 0;
     tempo = 500; // default value
-
+    int32_t  buf[6];
     uint32_t ch;
     for (ch=0; ch<16; ch++) {
+#if 0
         midi.putc(0xB0|ch);
         midi.putc(0x78);
         midi.putc(0x00);
         midi.putc(0xB0|ch);
         midi.putc(0x79);
         midi.putc(0x00);
+#else
+        buf[0] = (0xB0|ch);
+        buf[1] = (0x78);
+        buf[2] = (0x00);
+        buf[3] = (0xB0|ch);
+        buf[4] = (0x79);
+        buf[5] = (0x00);
+        midi.write(buf, 6);
+
+#endif
     }
 
     // Skip MIDI header
