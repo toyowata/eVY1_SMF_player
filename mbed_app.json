@@ -4,18 +4,32 @@
         "ENABLE_DEBUG_PRINT=1",
         "USE_DIRECTORY_LIST=1"
     ],
+    "requires": [
+        "bare-metal",
+        "events",
+        "blockdevice",
+        "filesystem",
+        "fat_chan",
+        "sd"
+    ],
     "target_overrides": {
         "*": {
-            "platform.stdio-baud-rate"          : 115200,
-            "platform.stdio-convert-newlines"   : true
+            "platform.stdio-baud-rate"                  : 115200,
+            "platform.stdio-convert-newlines"           : true,
+            "platform.stdio-buffered-serial"            : true,
+            "platform.stdio-flush-at-exit"              : true
         },
         "K64F": {
-            "app.fwd-button"                    : "D2"
+            "app.fwd-button"                    : "PTA4"
         }
     },
     "config": {
         "fwd-button": {
             "value": "D2"
+        },
+        "startup-delay-ms": {
+            "help": "Wait time before mounting the SD card (ms)",
+            "value": 8000
         }
     }
 }
